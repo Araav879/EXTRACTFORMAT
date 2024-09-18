@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Extractor Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        .link-item {
+            margin-bottom: 10px;
+        }
+        pre {
+            background-color: #fff;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .button-container button {
+            background-color: #28a745;
+        }
+        .button-container button:hover {
+            background-color: #218838;
+        }
+        .download-button {
+            background-color: #17a2b8;
+        }
+        .download-button:hover {
+            background-color: #138496;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        a {
+            text-decoration: none;
+            color: #007bff;
+            transition: color 0.3s ease;
+        }
+        a:hover {
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Link Extractor Tool</h1>
+    <textarea id="htmlInput" placeholder="Paste your HTML code here..."></textarea>
+    <div class="button-container">
+        <button onclick="extractLinks()">Extract Links</button>
+        <button onclick="copyAll()">Copy All</button>
+        <button class="download-button" onclick="downloadAsText()">Download as Text</button>
+    </div>
+    <div id="results">
+        <h2>Extracted PDF Links:</h2>
+        <ul id="pdfLinks"></ul>
+        <h2>Extracted Video Links (.m3u8):</h2>
+        <ul id="videoLinks"></ul>
+        <h2>JSON Output:</h2>
+        <pre id="jsonOutput"></pre>
+    </div>
+
+    <script>
+        function extractLinks() {
+            // Get HTML input
+            const htmlContent = document.getElementById('htmlInput').value;
+
+            // Parse HTML content
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+
+            // Extract PDF links
+            const pdfLinks = [];
+            doc.querySelectorAll('a[href$=".pdf"]').forEach(anchor => {
+                const title = anchor.parentElement.querySelector('span.video_name') ? 
+                              anchor.parentElement.querySelector('span.video_name').innerText : 
+                              anchor.innerText.trim() || 'No title';
+                pdfLinks.push({
+                    title: title,
+                    url: anchor.href
+                });
+            });
+
+            // Extract .m3u8 video links
+            const videoLinks = [];
+            doc.querySelectorAll('a[href$=".m3u8"]').forEach(anchor => {
+                const videoUrl = new URL(anchor.href).searchParams.get('videoUrl');
+                const title = anchor.parentElement.querySelector('span.video_name') ? 
+                              anchor.parentElement.querySelector('span.video_name').innerText : 
+                              anchor.innerText.trim() || 'No title';
+                if (videoUrl) {
+                    videoLinks.push({
+                        title: title,
+                        url: videoUrl
+                    });
+                }
+            });
+
+            // Display results
+            displayResults('pdfLinks', pdfLinks);
+            displayResults('videoLinks', videoLinks);
+            
+            // Convert to JSON and display
+            const jsonOutput = {
+                pdfLinks: pdfLinks,
+                videoLinks: videoLinks
+            };
+            document.getElementById('jsonOutput').textContent = JSON.stringify(jsonOutput, null, 2);
+        }
+
+        function displayResults(elementId, links) {
+            const list = document.getElementById(elementId);
+            list.innerHTML = '';
+            links.forEach(link => {
+                const listItem = document.createElement('li');
+                listItem.className = 'link-item';
+                listItem.innerHTML = `<a href="${link.url}" target="_blank">${link.title}</a>`;
+                list.appendChild(listItem);
+            });
+        }
+
+        function copyAll() {
+            const jsonOutput = document.getElementById('jsonOutput').textContent;
+            navigator.clipboard.writeText(jsonOutput).then(() => {
+                alert('Copied to clipboard!');
+            }, (err) => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+
+        function downloadAsText() {
+            const jsonOutput = document.getElementById('jsonOutput').textContent;
+            const blob = new Blob([jsonOutput], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'links.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
